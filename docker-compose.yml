@@ -1,0 +1,67 @@
+# https://velog.io/@ba93love/Docker-%EC%9C%84%EC%9D%98-%EC%9B%B9%EC%84%9C%EB%B2%84-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EC%84%B8%ED%8C%85-2-ELK-%EC%84%B8%ED%8C%85
+version: '3.2'
+
+services:
+  elasticsearch:
+    build:
+      context: "${PWD}/elasticsearch/"
+      dockerfile: Dockerfile
+    volumes:
+      - type: bind
+        source: "${PWD}/elasticsearch/config/elasticsearch.yml"
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - "${PWD}/elasticsearch/data:/var/lib/elasticsearch/data"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: elastic
+      discovery.type: single-node
+    networks:
+      - elk
+
+  logstash:
+    build:
+      context: "${PWD}/logstash/"
+      dockerfile: Dockerfile
+    volumes:
+      - type: bind
+        source: "${PWD}/logstash/config/logstash.yml"
+        target: /usr/share/logstash/config/logstash.yml
+        read_only: true
+      - type: bind
+        source: "${PWD}/logstash/pipeline"
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    ports:
+      - "5001:5001/tcp"
+      - "5001:5001/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    build:
+      context: kibana/
+      dockerfile: Dockerfile
+    volumes:
+      - type: bind
+        source: "${PWD}/kibana/config/kibana.yml"
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+    ports:
+      - "5601:5601"
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+networks:
+  elk:
+    driver: bridge
